@@ -1,0 +1,32 @@
+// Includes
+global.Bot = require( 'ttapi' );
+global.config = require( './config.json' );
+global.events = require( './events.js' );
+
+// Globals
+global.current_song;
+global.current_dj;
+
+// Start bot
+global.bot = new Bot( config.bot.auth, config.bot.userid, config.roomid );
+
+// Event listeners
+// Room listeners
+bot.on( 'roomChanged', events.room_changed );
+bot.on( 'register', events.register );
+bot.on( 'deregister', events.deregister );
+bot.on( 'booted_user', events.booted_user );
+
+// Chat listeners
+bot.on( 'speak', events.speak );
+bot.on( 'pmmed', events.pmmed );
+
+// Song listeners
+bot.on( 'nosong', events.no_song );
+bot.on( 'newsong', events.new_song );
+bot.on( 'endsong', events.end_song );
+
+// Table listeners
+bot.on( 'add_dj', events.add_dj );
+bot.on( 'rem_dj', events.remove_dj );
+bot.on( 'escort', events.escort_dj );

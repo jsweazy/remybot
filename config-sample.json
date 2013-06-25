@@ -1,0 +1,42 @@
+{
+	"bot": {
+		"userid": "########################",
+		"auth": "########################",
+		"name": "remy bot",
+		"OS": "mac"
+	},
+	"adminid": "########################",
+	"roomid": "########################",
+	"greeting": {
+		"on": false,
+		"text": "Welcome, #{user}"
+	},
+	"rules": {
+		"dj": {
+			"on": false,
+			"alloweddjs": []
+		},
+		"artist":  {
+			"on": false,
+			"restrictedartists": []
+		},
+		"table": {
+			"songs": {
+				"on": false,
+				"numsongs": 2
+			},
+			"wait": {
+				"on": false,
+				"type": "songs",
+				"numsongs": 2,
+				"time": 5
+			},
+			"queue": {
+				"on": false
+			}
+		},
+		"recent": {
+			"on": false
+		}
+	}
+}
