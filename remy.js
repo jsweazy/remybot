@@ -4,6 +4,7 @@ global.config = require( './config.json' );
 global.events = require( './events.js' );
 
 // Globals
+global.room_name;
 global.current_song;
 global.current_dj;
 

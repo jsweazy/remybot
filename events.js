@@ -1,30 +1,42 @@
 // Room events
 exports.room_changed = function( data ) {
 	console.log( 'room_changed' );
+	room_name = data.room.name;
 }
 
 exports.registered = function( data ) {
-	var name = data.user[0].name,
-		user_id = data.user[0].userid;
+	var user = data.user[0];
 
-	if ( user_id == config.bot.userid && name.toLowerCase() != 'guest' ) {
+	if ( user.userid == config.bot.userid ) {
+		return;
+	}
+
+	if ( config.rules.pmonjoin.on && room_name ) {
+		setTimeout( function() {
+			bot.pm( config.rules.pmonjoin.text.replace( '#{room}', room_name ), user.userid );
+		}, 1000 );
+	}
+
+	if ( !user.registered ) {
 		return;
 	}
 
 	if ( config.greeting.on ) {
-		bot.speak( config.greeting.text.replace( '#{user}', '@' + name ) );
+		setTimeout( function() {
+			bot.speak( config.greeting.text.replace( '#{user}', '@' + user.name ) );
+		}, 1000 );
 	}
 }
 
 exports.deregistered = function( data ) {
-	var name = data.user[0].name;
+	var user = data.user[0];
 
-	if ( name.toLowerCase() != 'guest' ) {
+	if ( user.registered ) {
 		return;
 	}
 
 	if ( config.valediction.on ) {
-		bot.speak( config.valediction.text.replace( '#{user}', '@' + name ) );
+		bot.speak( config.valediction.text.replace( '#{user}', '@' + user.name ) );
 	}
 }
 
