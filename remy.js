@@ -10,11 +10,10 @@ global.current_dj;
 // Start bot
 global.bot = new Bot( config.bot.auth, config.bot.userid, config.roomid );
 
-// Event listeners
 // Room listeners
 bot.on( 'roomChanged', events.room_changed );
-bot.on( 'register', events.register );
-bot.on( 'deregister', events.deregister );
+bot.on( 'registered', events.registered );
+bot.on( 'deregistered', events.deregistered );
 bot.on( 'booted_user', events.booted_user );
 
 // Chat listeners
