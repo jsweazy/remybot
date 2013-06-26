@@ -31,7 +31,7 @@ exports.registered = function( data ) {
 exports.deregistered = function( data ) {
 	var user = data.user[0];
 
-	if ( user.registered ) {
+	if ( !user.registered ) {
 		return;
 	}
 
