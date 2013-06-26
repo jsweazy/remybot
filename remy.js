@@ -7,6 +7,9 @@ global.events = require( './events.js' );
 global.room_name;
 global.current_song;
 global.current_dj;
+global.djs;
+global.song_log;
+global.snags = 0;
 
 // Start bot
 global.bot = new Bot( config.bot.auth, config.bot.userid, config.roomid );
@@ -25,6 +28,7 @@ bot.on( 'pmmed', events.pmmed );
 bot.on( 'nosong', events.no_song );
 bot.on( 'newsong', events.new_song );
 bot.on( 'endsong', events.end_song );
+bot.on( 'snagged', events.snagged );
 
 // Table listeners
 bot.on( 'add_dj', events.add_dj );
