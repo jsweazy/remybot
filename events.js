@@ -86,11 +86,14 @@ exports.new_song = function( data ) {
 }
 
 exports.end_song = function( data ) {
-	var metadata = data.room.metadata;
+	var metadata = data.room.metadata,
+		dj_rules = config.rules.dj;
 
-	// Do nothing if song is from an allowed dj
-	if ( !_.contains( config.rules.dj.alloweddjs, metadata.current_dj ) ) {
-		return
+	if ( dj_rules.on ) {
+		// Do nothing if song is not from an allowed dj 
+		if ( !_.contains( config.rules.dj.alloweddjs, metadata.current_dj ) ) {
+			return
+		}
 	}
 
 	// Set current song if not set.
