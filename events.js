@@ -75,28 +75,62 @@ exports.no_song = function( data ) {
 }
 
 exports.new_song = function( data ) {
+	var metadata = data.room.metadata,
+		current_song = metadata.current_song;
+		artist_rules = config.rules.artist;
+
 	// Get song log
-	bot.roomInfo( true, function( data ) {
-		song_log = data.room.metadata.songlog;
+	bot.roomInfo( true, function( room_info ) {
+		song_log = room_info.room.metadata.songlog;
 	});
 
+	if ( artist_rules.on ) {
+		// Check if artist is in restricted artist
+		artist_restricted = _.some( artist_rules.restrictedartists, function( restricted_artist ) {
+			if ( restricted_artist.toLowerCase().indexOf( current_song.metadata.artist.toLowerCase() ) !== -1 ) {
+				// Artist restricted
+				// Remove DJ to stop song.
+				setTimeout( function() {
+					bot.remDj( metadata.current_dj );
+				}, 1000 );
+
+				// Tell user that artist is restricted
+				bot.getProfile( metadata.current_dj, function ( user ) {
+					bot.speak( artist_rules.message.replace( '#{user}', '@' + user.name ) );
+				});
+
+				return true;
+			}
+
+			return false;
+		});
+	}
+
 	// Update data
-	current_song = data.room.metadata.current_song;
-	current_dj = data.room.metadata.current_song;
+	current_song = current_song;
+	current_dj = metadata.current_dj;
 }
 
 exports.end_song = function( data ) {
 	var metadata = data.room.metadata,
 		dj_rules = config.rules.dj;
 
+	// If song ended because artist was restircted, do nothing
+	if ( artist_restricted ) {
+		// Reset restriction
+		artist_restricted = false;
+
+		return;
+	}
+
 	if ( dj_rules.on ) {
 		// Do nothing if song is not from an allowed dj 
 		if ( !_.contains( config.rules.dj.alloweddjs, metadata.current_dj ) ) {
-			return
+			return;
 		}
 	}
 
-	// Set current song if not set.
+	// Set current song if not set
 	if ( !current_song ) {
 		current_song = metadata.current_song;
 	}
@@ -113,6 +147,7 @@ exports.end_song = function( data ) {
 	// Reset items
 	snags = 0;
 	current_song = {};
+	current_dj = {};
 }
 
 exports.snagged = function( data ) {
@@ -126,9 +161,13 @@ exports.add_dj = function( data ) {
 		dj_rules = config.rules.dj;
 
 	if ( dj_rules.on ) {
-		// If DJ is not in allow DJs then remove.
+		// If DJ is not in allow DJs then remove
 		if ( !_.contains( dj_rules.alloweddjs, user.userid ) ) {
-			bot.remDj( user.userid );
+			setTimeout( function() { 
+				bot.remDj( user.userid );
+			}, 1000 );
+
+			// Tell user they are not an allowed dj
 			bot.speak( dj_rules.message.replace( '#{user}', '@' + user.name ) );
 		}
 	}
