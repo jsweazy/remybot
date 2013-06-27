@@ -1,5 +1,6 @@
 // Includes
 global.Bot = require( 'ttapi' );
+global._ = require( 'underscore' );
 global.config = require( './config.json' );
 global.events = require( './events.js' );
 

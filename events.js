@@ -1,5 +1,6 @@
 // Room events
 exports.room_changed = function( data ) {
+	console.log('registered');
 	// set globals.
 	room_name = data.room.name;
 	current_song = data.room.metadata.current_song;
@@ -85,15 +86,22 @@ exports.new_song = function( data ) {
 }
 
 exports.end_song = function( data ) {
+	var metadata = data.room.metadata;
+
+	// Do nothing if song is from an allowed dj
+	if ( !_.contains( config.rules.dj.alloweddjs, metadata.current_dj ) ) {
+		return
+	}
+
 	// Set current song if not set.
 	if ( !current_song ) {
-		current_song = data.room.metadata.current_song;
+		current_song = metadata.current_song;
 	}
 
 	var summary = '"' + current_song.metadata.song + '" ' +
 		'by ' + current_song.metadata.artist + ' summary: ' +
-		data.room.metadata.upvotes + ' :thumbsup:, ' +
-		data.room.metadata.downvotes + ' :thumbsdown:, ' +
+		metadata.upvotes + ' :thumbsup:, ' +
+		metadata.downvotes + ' :thumbsdown:, ' +
 		snags + ' :heart:';
 
 	// Output song summary
@@ -111,7 +119,16 @@ exports.snagged = function( data ) {
 
 // Table events
 exports.add_dj = function( data ) {
-	console.log( 'add_dj' );
+	var user = data.user[0],
+		dj_rules = config.rules.dj;
+
+	if ( dj_rules.on ) {
+		// If DJ is not in allow DJs then remove.
+		if ( !_.contains( dj_rules.alloweddjs, user.userid ) ) {
+			bot.remDj( user.userid );
+			bot.speak( dj_rules.message.replace( '#{user}', '@' + user.name ) );
+		}
+	}
 }
 
 exports.remove_dj = function( data ) {

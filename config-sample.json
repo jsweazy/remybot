@@ -21,12 +21,14 @@
 			"text": "Welcome to #{room}. Here are the rules."
 		},
 		"dj": {
-			"on": false,
-			"alloweddjs": []
+			"on": true,
+			"alloweddjs": [],
+			"message": "Sorry #{user}, your are not an allowed DJ."
 		},
 		"artist":  {
 			"on": false,
-			"restrictedartists": []
+			"restrictedartists": [],
+			"message": "Sorry #{user}, the artist you played is not an allowed artist"
 		},
 		"table": {
 			"songs": {
