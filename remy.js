@@ -11,7 +11,7 @@ global.current_dj;
 global.djs;
 global.song_log;
 global.snags = 0;
-global.artist_restricted;
+global.skip_summary = false;
 
 // Start bot
 global.bot = new Bot( config.bot.auth, config.bot.userid, config.roomid );

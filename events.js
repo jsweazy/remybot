@@ -76,17 +76,18 @@ exports.no_song = function( data ) {
 
 exports.new_song = function( data ) {
 	var metadata = data.room.metadata,
-		current_song = metadata.current_song;
-		artist_rules = config.rules.artist;
+		current_song = metadata.current_song,
+		artist_rules = config.rules.artist,
+		recent_rules = config.rules.recent;
 
 	// Get song log
 	bot.roomInfo( true, function( room_info ) {
 		song_log = room_info.room.metadata.songlog;
 	});
 
-	if ( artist_rules.on ) {
+	if ( artist_rules.on && !skip_summary ) {
 		// Check if artist is in restricted artist
-		artist_restricted = _.some( artist_rules.restrictedartists, function( restricted_artist ) {
+		skip_summary = _.some( artist_rules.restrictedartists, function( restricted_artist ) {
 			if ( restricted_artist.toLowerCase().indexOf( current_song.metadata.artist.toLowerCase() ) !== -1 ) {
 				// Artist restricted
 				// Remove DJ to stop song.
@@ -106,6 +107,29 @@ exports.new_song = function( data ) {
 		});
 	}
 
+	if ( config.rules.recent.on && !skip_summary ) {
+		console.log('recet');
+		// Check if song is in song log
+		recently_played = _.some( song_log, function( song ) {
+			return song._id == current_song._id;
+		});
+
+		if ( recently_played ) {
+			// Song has been recently played
+			skip_summary = true;
+
+			// Remove DJ to stop song
+			setTimeout( function() {
+				bot.remDj( metadata.current_dj );
+			}, 1000 );
+
+			// Tell user that song has been recently played
+			bot.getProfile( metadata.current_dj, function ( user ) {
+				bot.speak( recent_rules.message.replace( '#{user}', '@' + user.name ) );
+			});
+		}
+	}
+
 	// Update data
 	current_song = current_song;
 	current_dj = metadata.current_dj;
@@ -116,18 +140,11 @@ exports.end_song = function( data ) {
 		dj_rules = config.rules.dj;
 
 	// If song ended because artist was restircted, do nothing
-	if ( artist_restricted ) {
+	if ( skip_summary ) {
 		// Reset restriction
-		artist_restricted = false;
+		skip_summary = false;
 
 		return;
-	}
-
-	if ( dj_rules.on ) {
-		// Do nothing if song is not from an allowed dj 
-		if ( !_.contains( config.rules.dj.alloweddjs, metadata.current_dj ) ) {
-			return;
-		}
 	}
 
 	// Set current song if not set
@@ -163,6 +180,8 @@ exports.add_dj = function( data ) {
 	if ( dj_rules.on ) {
 		// If DJ is not in allow DJs then remove
 		if ( !_.contains( dj_rules.alloweddjs, user.userid ) ) {
+			skip_summary = true; 
+
 			setTimeout( function() { 
 				bot.remDj( user.userid );
 			}, 1000 );
