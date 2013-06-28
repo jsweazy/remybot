@@ -33,16 +33,19 @@
 		"table": {
 			"songs": {
 				"on": false,
-				"numsongs": 2
+				"numsongs": 2,
+				"message": "#{user}, your times up."
 			},
 			"wait": {
 				"on": false,
 				"type": "songs",
 				"numsongs": 2,
-				"time": 5
+				"time": 5,
+				"message": "#{user}, you have not waited enough."
 			},
 			"queue": {
-				"on": false
+				"on": false,
+				"message": "#{user}, you are not in queue. Please add yourself to the queue by type #{command}"
 			}
 		},
 		"recent": {
