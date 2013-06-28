@@ -1,11 +1,16 @@
 // Room events
 exports.room_changed = function( data ) {
 	console.log('registered');
-	// set globals.
+	// set globals
 	room_name = data.room.name;
 	current_song = data.room.metadata.current_song;
 	current_dj = data.room.metadata.current_dj;
-	djs = data.room.djids;
+	_.each( data.room.djids, function(id) {
+		djs.push({
+			id: id,
+			num_songs: 0
+		});
+	});
 	song_log = data.room.metadata.songlog;
 
 	// If there are at least 3 upvotes, vote up
@@ -78,12 +83,22 @@ exports.new_song = function( data ) {
 	var metadata = data.room.metadata,
 		current_song = metadata.current_song,
 		artist_rules = config.rules.artist,
+		table_rules = config.rules.table,
 		recent_rules = config.rules.recent;
 
 	// Get song log
 	bot.roomInfo( true, function( room_info ) {
 		song_log = room_info.room.metadata.songlog;
 	});
+
+	if ( table_rules.songs.on ) {
+		_.each( djs, function(dj) {
+			if ( dj.id == metadata.userid ) {
+				// Increase number songs played.
+				dj.num_songs++;
+			}
+		});
+	}
 
 	if ( artist_rules.on && !skip_summary ) {
 		// Check if artist is in restricted artist
@@ -108,7 +123,6 @@ exports.new_song = function( data ) {
 	}
 
 	if ( config.rules.recent.on && !skip_summary ) {
-		console.log('recet');
 		// Check if song is in song log
 		recently_played = _.some( song_log, function( song ) {
 			return song._id == current_song._id;
@@ -136,8 +150,35 @@ exports.new_song = function( data ) {
 }
 
 exports.end_song = function( data ) {
+	console.log('endsong');
 	var metadata = data.room.metadata,
-		dj_rules = config.rules.dj;
+		dj_rules = config.rules.dj,
+		table_rules = config.rules.table;
+
+	if ( table_rules.songs.on && _.isEmpty( dj_to_remove) ) {
+		// Check if a DJ is over the song limit
+		dj_to_remove = _.find( djs, function( dj ) {
+			return dj.num_songs >= table_rules.songs.numsongs;
+		});
+
+		if ( !_.isEmpty( dj_to_remove ) ) {
+			// Remove dj.
+			setTimeout( function() {
+				skip_summary = true;
+
+				// Remove DJ
+				bot.remDj( dj_to_remove.id, function() {
+					// Reset DJ to remove
+					dj_to_remove = {};
+				});
+			}, 1000 );
+
+			// Tell user that they reached there song limit
+			bot.getProfile( metadata.current_dj, function ( user ) {
+				bot.speak( table_rules.songs.message.replace( '#{user}', '@' + user.name ) );
+			});
+		}
+	}
 
 	// If song ended because artist was restircted, do nothing
 	if ( skip_summary ) {
@@ -148,7 +189,7 @@ exports.end_song = function( data ) {
 	}
 
 	// Set current song if not set
-	if ( !current_song ) {
+	if ( _.isEmpty( current_song ) ) {
 		current_song = metadata.current_song;
 	}
 
@@ -177,6 +218,11 @@ exports.add_dj = function( data ) {
 	var user = data.user[0],
 		dj_rules = config.rules.dj;
 
+	djs.push({
+		id: user.userid,
+		num_songs: 0
+	});
+
 	if ( dj_rules.on ) {
 		// If DJ is not in allow DJs then remove
 		if ( !_.contains( dj_rules.alloweddjs, user.userid ) ) {
@@ -193,7 +239,12 @@ exports.add_dj = function( data ) {
 }
 
 exports.remove_dj = function( data ) {
-	console.log( 'remove_dj' );
+	var user = data.user[0];
+
+	// Remove user from djs
+	djs = _.reject( djs, function( dj ) {
+		return dj.id = user.userid;
+	});
 }
 
 exports.escort_dj = function( data ) {
