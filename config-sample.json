@@ -49,7 +49,8 @@
 			}
 		},
 		"recent": {
-			"on": false
+			"on": false,
+			"message": "Sorry #{user}, This song was recently played."
 		}
 	}
 }

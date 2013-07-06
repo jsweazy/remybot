@@ -77,6 +77,9 @@ exports.pmmed = function( data ) {
 // Song events
 exports.no_song = function( data ) {
 	console.log( 'no_song' );
+	if ( config.rules.table.wait.on && config.rules.table.wait.type == 'songs' ) {
+		waiting_djs = [];
+	}
 }
 
 exports.new_song = function( data ) {
@@ -93,16 +96,16 @@ exports.new_song = function( data ) {
 
 	if ( table_rules.songs.on ) {
 		_.each( djs, function(dj) {
-			if ( dj.id == metadata.userid ) {
+			if ( dj.id == metadata.current_dj ) {
 				// Increase number songs played.
 				dj.num_songs++;
 			}
 		});
 	}
 
-	if ( artist_rules.on && !skip_summary ) {
+	if ( artist_rules.on && !dj_removed ) {
 		// Check if artist is in restricted artist
-		skip_summary = _.some( artist_rules.restrictedartists, function( restricted_artist ) {
+		dj_removed = _.each( artist_rules.restrictedartists, function( restricted_artist ) {
 			if ( restricted_artist.toLowerCase().indexOf( current_song.metadata.artist.toLowerCase() ) !== -1 ) {
 				// Artist restricted
 				// Remove DJ to stop song.
@@ -115,14 +118,12 @@ exports.new_song = function( data ) {
 					bot.speak( artist_rules.message.replace( '#{user}', '@' + user.name ) );
 				});
 
-				return true;
+				return metadata.current_dj;
 			}
-
-			return false;
 		});
 	}
 
-	if ( config.rules.recent.on && !skip_summary ) {
+	if ( config.rules.recent.on && !dj_removed ) {
 		// Check if song is in song log
 		recently_played = _.some( song_log, function( song ) {
 			return song._id == current_song._id;
@@ -130,7 +131,7 @@ exports.new_song = function( data ) {
 
 		if ( recently_played ) {
 			// Song has been recently played
-			skip_summary = true;
+			dj_removed = metadata.current_dj;
 
 			// Remove DJ to stop song
 			setTimeout( function() {
@@ -150,12 +151,11 @@ exports.new_song = function( data ) {
 }
 
 exports.end_song = function( data ) {
-	console.log('endsong');
 	var metadata = data.room.metadata,
 		dj_rules = config.rules.dj,
 		table_rules = config.rules.table;
 
-	if ( table_rules.songs.on && _.isEmpty( dj_to_remove) ) {
+	if ( table_rules.songs.on && _.isEmpty( dj_to_remove ) ) {
 		// Check if a DJ is over the song limit
 		dj_to_remove = _.find( djs, function( dj ) {
 			return dj.num_songs >= table_rules.songs.numsongs;
@@ -164,7 +164,7 @@ exports.end_song = function( data ) {
 		if ( !_.isEmpty( dj_to_remove ) ) {
 			// Remove dj.
 			setTimeout( function() {
-				skip_summary = true;
+				dj_removed = dj_to_remove.id;
 
 				// Remove DJ
 				bot.remDj( dj_to_remove.id, function() {
@@ -180,10 +180,26 @@ exports.end_song = function( data ) {
 		}
 	}
 
-	// If song ended because artist was restircted, do nothing
-	if ( skip_summary ) {
-		// Reset restriction
-		skip_summary = false;
+	if ( table_rules.wait.on ) {
+		if ( table_rules.wait.type == 'songs' ) {
+			var dj_should_is_waiting = _.some( waiting_djs, function( dj ) { return dj.id == metadata.current_dj } );
+
+			if ( !dj_should_is_waiting ) {
+				_.each( waiting_djs, function( dj ) {
+					dj.songs++;
+				});
+			}
+			
+			waiting_djs = _.reject( waiting_djs, function( dj ) {
+				return dj.songs >= table_rules.wait.numsongs;
+			});
+		}
+	}
+
+	// If song ended because artist was removed, do nothing
+	if ( dj_removed == metadata.current_dj ) {
+		// Reset removed DJ
+		dj_removed = '';
 
 		return;
 	}
@@ -216,17 +232,36 @@ exports.snagged = function( data ) {
 // Table events
 exports.add_dj = function( data ) {
 	var user = data.user[0],
-		dj_rules = config.rules.dj;
+		dj_rules = config.rules.dj,
+		table_rules = config.rules.table;
 
 	djs.push({
 		id: user.userid,
 		num_songs: 0
 	});
 
+	if ( table_rules.wait.on ) {
+		// If DJ should still be waiting, remove him
+		var dj_should_be_waiting = _.some( waiting_djs, function( dj ) { return dj.id == user.userid } );
+
+		if ( dj_should_be_waiting ) {
+			dj_removed = user.userid;
+
+			// Remove DJ
+			setTimeout( function() {
+				dj_removed_because_waiting = true;
+				bot.remDj( user.userid );
+			}, 1000 );
+
+			// Tell user they are not an allowed dj
+			bot.speak( table_rules.wait.message.replace( '#{user}', '@' + user.name ) );
+		}
+	}
+
 	if ( dj_rules.on ) {
 		// If DJ is not in allow DJs then remove
 		if ( !_.contains( dj_rules.alloweddjs, user.userid ) ) {
-			skip_summary = true; 
+			dj_removed = user.userid;
 
 			setTimeout( function() { 
 				bot.remDj( user.userid );
@@ -239,12 +274,40 @@ exports.add_dj = function( data ) {
 }
 
 exports.remove_dj = function( data ) {
-	var user = data.user[0];
+	var user = data.user[0],
+		table_rules = config.rules.table;
 
 	// Remove user from djs
 	djs = _.reject( djs, function( dj ) {
-		return dj.id = user.userid;
+		return dj.id == user.userid;
 	});
+
+	if ( table_rules.wait.on ) {
+		// Add DJ to waiting DJs
+		var dj_is_already_waiting = _.some( waiting_djs, function( dj ) {
+			return dj.id == user.userid;
+		});
+
+		if ( !dj_is_already_waiting && !dj_removed_because_waiting ) {
+			waiting_djs.push({
+				id: user.userid,
+				songs: 0
+			});
+
+			if ( table_rules.wait.type == 'time' ) {
+				// Remove DJ from waitlist at set time
+				setTimeout( function() {
+					// Remove user
+					waiting_djs = _.reject( waiting_djs, function( dj ) {
+						return user.userid;
+					});
+				}, table_rules.wait.time * 60000 );
+			}
+		}
+
+		// Reset
+		dj_removed_because_waiting = false;
+	}
 }
 
 exports.escort_dj = function( data ) {
